@@ -1,29 +1,25 @@
 from django.contrib import admin
-from .models import Region, WeatherSnapshot, FireEvent, SavedQuery
+from .models import WeatherSearch, FavoriteCity
 
 
-@admin.register(Region)
-class RegionAdmin(admin.ModelAdmin):
-    list_display = ("name", "country", "lat", "lon", "created_at")
-    search_fields = ("name", "country")
+@admin.register(WeatherSearch)
+class WeatherSearchAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "created_at",
+        "city",
+        "user",
+        "is_success",
+        "temperature_c",
+        "description",
+    )
+    list_filter = ("is_success", "created_at")
+    search_fields = ("city", "user__username", "user__email")
+    readonly_fields = ("created_at",)
 
 
-@admin.register(WeatherSnapshot)
-class WeatherSnapshotAdmin(admin.ModelAdmin):
-    list_display = ("region", "observed_at", "temperature_c", "humidity", "wind_speed")
-    list_filter = ("region",)
-    search_fields = ("region__name",)
-
-
-@admin.register(FireEvent)
-class FireEventAdmin(admin.ModelAdmin):
-    list_display = ("region", "detected_at", "confidence", "source")
-    list_filter = ("region", "source")
-    search_fields = ("region__name",)
-
-
-@admin.register(SavedQuery)
-class SavedQueryAdmin(admin.ModelAdmin):
-    list_display = ("user", "region", "query_type", "created_at")
-    list_filter = ("query_type",)
-    search_fields = ("user__username", "region__name")
+@admin.register(FavoriteCity)
+class FavoriteCityAdmin(admin.ModelAdmin):
+    list_display = ("id", "city", "user", "created_at")
+    search_fields = ("city", "user__username", "user__email")
+    readonly_fields = ("created_at",)
