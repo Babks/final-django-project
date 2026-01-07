@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Погода по городу</title>
+</head>
+<body>
+<h1>Погода по городу</h1>
+
+<form method="post">
+    {% csrf_token %}
+    <div>
+        {{ form.city.label_tag }}
+        {{ form.city }}
+        {% if form.city.errors %}
+            <div>{{ form.city.errors }}</div>
+        {% endif %}
+    </div>
+    <button type="submit">Найти</button>
+</form>
+
+<p><a href="{% url 'home' %}">На главную</a></p>
+
+{% if error_message %}
+    <p>{{ error_message }}</p>
+{% endif %}
+
+{% if weather %}
+    <hr>
+    <h2>{{ weather.city }}{% if weather.country %}, {{ weather.country }}{% endif %}</h2>
+    {% if weather.icon_url %}
+        <img src="{{ weather.icon_url }}" alt="icon">
+    {% endif %}
+    <ul>
+        <li>Температура: {{ weather.temp }} °C</li>
+        <li>Ощущается как: {{ weather.feels_like }} °C</li>
+        <li>Описание: {{ weather.description }}</li>
+        <li>Влажность: {{ weather.humidity }}%</li>
+        <li>Ветер: {{ weather.wind_speed }} м/с</li>
+    </ul>
+{% endif %}
+
+</body>
+</html>
