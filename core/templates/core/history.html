@@ -1,0 +1,36 @@
+{% extends "core/base.html" %}
+
+{% block title %}История{% endblock %}
+
+{% block content %}
+<h1>История запросов</h1>
+
+{% if not items %}
+    <p>История пуста.</p>
+{% else %}
+    <table border="1" cellpadding="6">
+        <thead>
+            <tr>
+                <th>Дата</th>
+                <th>Город</th>
+                <th>Успех</th>
+                <th>Темп.</th>
+                <th>Описание</th>
+                <th>Ошибка</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for it in items %}
+            <tr>
+                <td>{{ it.created_at }}</td>
+                <td>{{ it.city }}</td>
+                <td>{{ it.is_success }}</td>
+                <td>{{ it.temperature_c }}</td>
+                <td>{{ it.description }}</td>
+                <td>{{ it.error_message }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+{% endblock %}

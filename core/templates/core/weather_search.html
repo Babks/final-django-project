@@ -1,10 +1,8 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <title>Погода по городу</title>
-</head>
-<body>
+{% extends "core/base.html" %}
+
+{% block title %}Погода по городу{% endblock %}
+
+{% block content %}
 <h1>Погода по городу</h1>
 
 <form method="post">
@@ -19,8 +17,6 @@
     <button type="submit">Найти</button>
 </form>
 
-<p><a href="{% url 'home' %}">На главную</a></p>
-
 {% if error_message %}
     <p>{{ error_message }}</p>
 {% endif %}
@@ -28,9 +24,25 @@
 {% if weather %}
     <hr>
     <h2>{{ weather.city }}{% if weather.country %}, {{ weather.country }}{% endif %}</h2>
+
+    {% if user.is_authenticated %}
+        <form method="post" action="{% url 'toggle_favorite' %}">
+            {% csrf_token %}
+            <input type="hidden" name="city" value="{{ weather.city }}">
+            {% if is_favorite %}
+                <button type="submit">Убрать из избранного</button>
+            {% else %}
+                <button type="submit">Добавить в избранное</button>
+            {% endif %}
+        </form>
+    {% else %}
+        <p><em>Войдите в аккаунт, чтобы сохранять избранное и историю.</em></p>
+    {% endif %}
+
     {% if weather.icon_url %}
         <img src="{{ weather.icon_url }}" alt="icon">
     {% endif %}
+
     <ul>
         <li>Температура: {{ weather.temp }} °C</li>
         <li>Ощущается как: {{ weather.feels_like }} °C</li>
@@ -39,6 +51,4 @@
         <li>Ветер: {{ weather.wind_speed }} м/с</li>
     </ul>
 {% endif %}
-
-</body>
-</html>
+{% endblock %}

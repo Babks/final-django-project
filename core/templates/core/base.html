@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}FireRisk Watch{% endblock %}</title>
+</head>
+<body>
+<nav>
+    <a href="{% url 'home' %}">Главная</a> |
+    <a href="{% url 'weather_search' %}">Поиск погоды</a>
+    {% if user.is_authenticated %}
+        | <a href="{% url 'history' %}">История</a>
+        | <a href="{% url 'favorites' %}">Избранное</a>
+        | <span>Вы вошли как: {{ user.username }}</span>
+    {% else %}
+        | <span>Гость</span>
+    {% endif %}
+</nav>
+<hr>
+{% block content %}{% endblock %}
+</body>
+</html>

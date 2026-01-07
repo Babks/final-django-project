@@ -1,0 +1,17 @@
+{% extends "core/base.html" %}
+
+{% block title %}Избранное{% endblock %}
+
+{% block content %}
+<h1>Избранные города</h1>
+
+{% if not items %}
+    <p>Избранное пустое.</p>
+{% else %}
+    <ul>
+        {% for it in items %}
+            <li>{{ it.city }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}
+{% endblock %}
