@@ -8,6 +8,7 @@ from core.views import (
     history_view,
     toggle_favorite_city_view,
     signup_view,
+    profile_view,
 )
 
 urlpatterns = [
@@ -19,6 +20,8 @@ urlpatterns = [
     path("favorites/", favorites_view, name="favorites"),
     path("history/", history_view, name="history"),
     path("favorites/toggle/", toggle_favorite_city_view, name="favorite_toggle"),
+
+    path("profile/", profile_view, name="profile"),
 
     path("accounts/signup/", signup_view, name="signup"),
     path("accounts/", include("django.contrib.auth.urls")),

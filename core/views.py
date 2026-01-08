@@ -1,5 +1,6 @@
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
+from django.db.models import Count
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -87,6 +88,32 @@ def favorites_view(request):
 def history_view(request):
     history = WeatherSearch.objects.filter(user=request.user).order_by("-created_at")[:50]
     return render(request, "core/history.html", {"history": history})
+
+
+@login_required
+def profile_view(request):
+    favorites_count = FavoriteCity.objects.filter(user=request.user).count()
+    history_count = WeatherSearch.objects.filter(user=request.user).count()
+
+    last_searches = (
+        WeatherSearch.objects.filter(user=request.user)
+        .order_by("-created_at")[:5]
+    )
+
+    top_cities = (
+        WeatherSearch.objects.filter(user=request.user, is_success=True)
+        .values("city")
+        .annotate(cnt=Count("id"))
+        .order_by("-cnt", "city")[:5]
+    )
+
+    context = {
+        "favorites_count": favorites_count,
+        "history_count": history_count,
+        "last_searches": last_searches,
+        "top_cities": top_cities,
+    }
+    return render(request, "core/profile.html", context)
 
 
 @login_required

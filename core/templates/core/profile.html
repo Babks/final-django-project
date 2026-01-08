@@ -1,0 +1,128 @@
+{% extends "core/base.html" %}
+{% block title %}Профиль — FireRisk Watch{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-3">Личный кабинет</h1>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="h5 mb-3">Аккаунт</h2>
+
+                <div class="mb-2">
+                    <div class="text-muted small">Пользователь</div>
+                    <div class="fw-semibold">{{ user.username }}</div>
+                </div>
+
+                <div class="mb-2">
+                    <div class="text-muted small">Email</div>
+                    <div>{{ user.email|default:"—" }}</div>
+                </div>
+
+                <div class="mb-0">
+                    <div class="text-muted small">Дата регистрации</div>
+                    <div>{{ user.date_joined|date:"d.m.Y H:i" }}</div>
+                </div>
+
+                <hr>
+
+                <a class="btn btn-outline-secondary btn-sm" href="{% url 'password_change' %}">
+                    Сменить пароль
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="h5 mb-3">Статистика</h2>
+
+                <div class="d-flex gap-3 flex-wrap">
+                    <div class="border rounded p-3">
+                        <div class="text-muted small">Избранное</div>
+                        <div class="fs-4 fw-semibold">{{ favorites_count }}</div>
+                    </div>
+                    <div class="border rounded p-3">
+                        <div class="text-muted small">Запросов в истории</div>
+                        <div class="fs-4 fw-semibold">{{ history_count }}</div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="d-flex gap-2 flex-wrap">
+                    <a class="btn btn-primary btn-sm" href="{% url 'weather_search' %}">Новый запрос</a>
+                    <a class="btn btn-outline-primary btn-sm" href="{% url 'favorites' %}">Открыть избранное</a>
+                    <a class="btn btn-outline-primary btn-sm" href="{% url 'history' %}">Открыть историю</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mt-1">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="h5 mb-3">Последние запросы</h2>
+
+                {% if last_searches %}
+                    <div class="list-group">
+                        {% for row in last_searches %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-semibold">{{ row.city }}</div>
+                                    <div class="text-muted small">{{ row.created_at|date:"d.m.Y H:i" }}</div>
+                                </div>
+                                <div>
+                                    {% if row.is_success %}
+                                        <span class="badge text-bg-success">OK</span>
+                                    {% else %}
+                                        <span class="badge text-bg-danger">ERR</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-secondary mb-0">Пока нет запросов.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="h5 mb-3">Топ городов</h2>
+
+                {% if top_cities %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped align-middle mb-0">
+                            <thead>
+                            <tr>
+                                <th>Город</th>
+                                <th class="text-end">Успешных запросов</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for item in top_cities %}
+                                <tr>
+                                    <td>{{ item.city }}</td>
+                                    <td class="text-end">{{ item.cnt }}</td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-secondary mb-0">Пока нет успешных запросов.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
