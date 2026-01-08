@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from core.forms import CitySearchForm
@@ -19,35 +20,39 @@ def weather_search_view(request):
     is_favorite = False
 
     if request.method == "POST" and form.is_valid():
-        city = form.cleaned_data["city"].strip()
+        city = form.cleaned_data["city"]
         weather = get_weather_by_city(city)
 
         if weather is None:
             error_message = "Не удалось получить данные. Проверьте название города или попробуйте позже."
-            WeatherSearch.objects.create(
-                user=request.user if request.user.is_authenticated else None,
-                city=city,
-                is_success=False,
-                error_message=error_message,
-                temperature_c=None,
-                description="",
-                wind_speed=None,
-                humidity=None,
-            )
-        else:
-            WeatherSearch.objects.create(
-                user=request.user if request.user.is_authenticated else None,
-                city=weather.city,
-                is_success=True,
-                error_message="",
-                temperature_c=int(round(weather.temp)),
-                description=weather.description or "",
-                wind_speed=float(weather.wind_speed) if weather.wind_speed is not None else None,
-                humidity=int(weather.humidity) if weather.humidity is not None else None,
-            )
-
             if request.user.is_authenticated:
-                is_favorite = FavoriteCity.objects.filter(user=request.user, city=weather.city).exists()
+                WeatherSearch.objects.create(
+                    user=request.user,
+                    city=city,
+                    is_success=False,
+                    error_message=error_message,
+                    temperature_c=None,
+                    description="",
+                    wind_speed=None,
+                    humidity=None,
+                )
+        else:
+            if request.user.is_authenticated:
+                WeatherSearch.objects.create(
+                    user=request.user,
+                    city=weather.city,
+                    is_success=True,
+                    error_message="",
+                    temperature_c=int(round(weather.temp)),
+                    description=weather.description or "",
+                    wind_speed=float(weather.wind_speed) if weather.wind_speed is not None else None,
+                    humidity=int(weather.humidity) if weather.humidity is not None else None,
+                )
+
+                is_favorite = FavoriteCity.objects.filter(
+                    user=request.user,
+                    city__iexact=weather.city,
+                ).exists()
 
     context = {
         "form": form,
@@ -59,28 +64,30 @@ def weather_search_view(request):
 
 
 @login_required
-def history_view(request):
-    items = WeatherSearch.objects.filter(user=request.user).order_by("-created_at")[:200]
-    return render(request, "core/history.html", {"items": items})
+def favorites_view(request):
+    favorites = FavoriteCity.objects.filter(user=request.user).order_by("city")
+    return render(request, "core/favorites.html", {"favorites": favorites})
 
 
 @login_required
-def favorites_view(request):
-    items = FavoriteCity.objects.filter(user=request.user).order_by("city")
-    return render(request, "core/favorites.html", {"items": items})
+def history_view(request):
+    history = WeatherSearch.objects.filter(user=request.user).order_by("-created_at")[:50]
+    return render(request, "core/history.html", {"history": history})
 
 
 @login_required
 @require_POST
-def toggle_favorite_view(request):
+def toggle_favorite_city_view(request):
     city = (request.POST.get("city") or "").strip()
-    if not city:
-        return redirect("weather_search")
+    next_url = request.POST.get("next") or reverse("weather_search")
 
-    obj = FavoriteCity.objects.filter(user=request.user, city=city).first()
+    if not city:
+        return redirect(next_url)
+
+    obj = FavoriteCity.objects.filter(user=request.user, city__iexact=city).first()
     if obj:
         obj.delete()
     else:
         FavoriteCity.objects.create(user=request.user, city=city)
 
-    return redirect("weather_search")
+    return redirect(next_url)

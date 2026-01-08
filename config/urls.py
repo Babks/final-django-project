@@ -1,19 +1,23 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 
 from core.views import (
     home_view,
     weather_search_view,
-    history_view,
     favorites_view,
-    toggle_favorite_view,
+    history_view,
+    toggle_favorite_city_view,
 )
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+
     path("", home_view, name="home"),
     path("weather/", weather_search_view, name="weather_search"),
-    path("history/", history_view, name="history"),
+
     path("favorites/", favorites_view, name="favorites"),
-    path("favorites/toggle/", toggle_favorite_view, name="toggle_favorite"),
+    path("history/", history_view, name="history"),
+    path("favorites/toggle/", toggle_favorite_city_view, name="favorite_toggle"),
+
+    path("accounts/", include("django.contrib.auth.urls")),
 ]

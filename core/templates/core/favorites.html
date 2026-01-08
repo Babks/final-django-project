@@ -1,17 +1,24 @@
 {% extends "core/base.html" %}
-
-{% block title %}Избранное{% endblock %}
+{% block title %}Избранное — FireRisk Watch{% endblock %}
 
 {% block content %}
-<h1>Избранные города</h1>
+<h1 class="h3 mb-3">Избранные города</h1>
 
-{% if not items %}
-    <p>Избранное пустое.</p>
-{% else %}
-    <ul>
-        {% for it in items %}
-            <li>{{ it.city }}</li>
+{% if favorites %}
+    <div class="list-group">
+        {% for item in favorites %}
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>{{ item.city }}</div>
+                <form method="post" action="{% url 'favorite_toggle' %}" class="m-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="city" value="{{ item.city }}">
+                    <input type="hidden" name="next" value="{% url 'favorites' %}">
+                    <button class="btn btn-sm btn-outline-danger" type="submit">Удалить</button>
+                </form>
+            </div>
         {% endfor %}
-    </ul>
+    </div>
+{% else %}
+    <div class="alert alert-secondary">Пока пусто. Добавь город из страницы поиска.</div>
 {% endif %}
 {% endblock %}

@@ -1,0 +1,12 @@
+{% extends "core/base.html" %}
+{% block title %}Вход — FireRisk Watch{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-3">Вход</h1>
+
+<form method="post" class="card p-3" style="max-width: 420px;">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-primary">Войти</button>
+</form>
+{% endblock %}

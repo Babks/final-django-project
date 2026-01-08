@@ -1,9 +1,21 @@
 {% extends "core/base.html" %}
-
-{% block title %}Главная{% endblock %}
+{% block title %}Главная — FireRisk Watch{% endblock %}
 
 {% block content %}
-<h1>Сервис погоды</h1>
+<div class="p-4 p-md-5 mb-4 bg-light rounded-3">
+    <div class="container-fluid py-2">
+        <h1 class="display-6">FireRisk Watch</h1>
+        <p class="col-md-10 fs-5">
+            Сервис для получения погоды по городу через внешнее API.
+            Для авторизованных пользователей доступно избранное и история запросов.
+        </p>
+        <a class="btn btn-primary btn-lg" href="{% url 'weather_search' %}">Перейти к поиску погоды</a>
+    </div>
+</div>
 
-<p><a href="{% url 'weather_search' %}">Перейти к поиску погоды</a></p>
+{% if not user.is_authenticated %}
+<div class="alert alert-info">
+    Чтобы сохранять историю и избранные города — <a href="{% url 'login' %}">войдите</a>.
+</div>
+{% endif %}
 {% endblock %}
