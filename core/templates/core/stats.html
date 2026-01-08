@@ -4,7 +4,7 @@
 {% block extra_head %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-    #riskMap { height: 420px; }
+    #riskMap { height: 460px; }
 </style>
 {% endblock %}
 
@@ -81,7 +81,7 @@
             {{ markers|json_script:"map-markers" }}
             <div id="riskMap" class="rounded"></div>
             <div class="text-muted small mt-2">
-                Цвет маркера — условный риск (пока только по погоде). Далее подключим NASA FIRMS для реальных термоточек.
+                Цвет маркера — итоговый риск 0..100. На карте видно вклад FIRMS (кол-во термоточек и средний confidence).
             </div>
         {% else %}
             <div class="alert alert-secondary mb-0">
@@ -158,13 +158,9 @@
             },
             options: {
                 responsive: true,
-                plugins: {
-                    legend: { display: true }
-                },
+                plugins: { legend: { display: true } },
                 scales: {
-                    x: {
-                        ticks: { maxRotation: 60, minRotation: 40 }
-                    }
+                    x: { ticks: { maxRotation: 60, minRotation: 40 } }
                 }
             }
         });
@@ -210,8 +206,11 @@
             const hum = (m.humidity !== null && m.humidity !== undefined) ? `${m.humidity}%` : "—";
             const wind = (m.wind !== null && m.wind !== undefined) ? `${m.wind} м/с` : "—";
 
+            const firmsCount = (m.firms_count !== null && m.firms_count !== undefined) ? m.firms_count : "—";
+            const firmsConf = (m.firms_avg_confidence !== null && m.firms_avg_confidence !== undefined) ? Number(m.firms_avg_confidence).toFixed(1) : "—";
+
             marker.bindPopup(`
-                <div style="min-width:220px">
+                <div style="min-width:240px">
                     <div><strong>${m.city}</strong></div>
                     <div class="text-muted" style="font-size:12px">${m.time}</div>
                     <hr style="margin:8px 0"/>
@@ -219,7 +218,11 @@
                     <div>Влажность: <strong>${hum}</strong></div>
                     <div>Ветер: <strong>${wind}</strong></div>
                     <div style="margin-top:6px">
-                        Риск: <strong>${m.score}/100</strong>
+                        <div>FIRMS термоточек (7 дней / ~50км): <strong>${firmsCount}</strong></div>
+                        <div>Средняя достоверность: <strong>${firmsConf}</strong></div>
+                    </div>
+                    <div style="margin-top:8px">
+                        Итоговый риск: <strong>${m.score}/100</strong>
                     </div>
                 </div>
             `);
@@ -230,7 +233,7 @@
         if (bounds.length) {
             map.fitBounds(bounds, { padding: [30, 30] });
         } else {
-            map.setView([55.751244, 37.618423], 4); // fallback на РФ
+            map.setView([55.751244, 37.618423], 4);
         }
     }
 })();

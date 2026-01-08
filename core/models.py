@@ -21,6 +21,13 @@ class WeatherSearch(models.Model):
     wind_speed = models.FloatField(null=True, blank=True)
     humidity = models.IntegerField(null=True, blank=True)
 
+    lat = models.FloatField(null=True, blank=True)
+    lon = models.FloatField(null=True, blank=True)
+    risk_score = models.IntegerField(null=True, blank=True)  # 0..100
+
+    firms_count = models.IntegerField(null=True, blank=True)
+    firms_avg_confidence = models.FloatField(null=True, blank=True)
+
     class Meta:
         ordering = ["-created_at"]
 

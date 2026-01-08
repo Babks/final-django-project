@@ -9,9 +9,12 @@ from core.forms import CitySearchForm, SignUpForm
 from core.models import WeatherSearch, FavoriteCity
 from core.services import (
     get_weather_by_city,
-    geocode_city,
     calc_simple_fire_risk,
     risk_color,
+    firms_get_area_events,
+    firms_aggregate,
+    calc_fire_activity_score,
+    calc_total_risk,
 )
 
 
@@ -55,18 +58,41 @@ def weather_search_view(request):
                     description="",
                     wind_speed=None,
                     humidity=None,
+                    lat=None,
+                    lon=None,
+                    risk_score=None,
+                    firms_count=None,
+                    firms_avg_confidence=None,
                 )
         else:
             if request.user.is_authenticated:
+                weather_score = calc_simple_fire_risk(weather.temp, weather.humidity, weather.wind_speed)
+
+                firms_rows, firms_source, firms_error = firms_get_area_events(
+                    weather.lat,
+                    weather.lon,
+                    radius_km=50.0,
+                    day_range=7,
+                )
+                firms_count, firms_avg_conf = firms_aggregate(firms_rows)
+
+                fire_score = calc_fire_activity_score(firms_count, firms_avg_conf) if firms_rows is not None else 0
+                total_risk = calc_total_risk(weather_score, fire_score)
+
                 WeatherSearch.objects.create(
                     user=request.user,
                     city=weather.city,
                     is_success=True,
-                    error_message="",
+                    error_message="",  # погода ок
                     temperature_c=int(round(weather.temp)),
                     description=weather.description or "",
                     wind_speed=float(weather.wind_speed) if weather.wind_speed is not None else None,
                     humidity=int(weather.humidity) if weather.humidity is not None else None,
+                    lat=float(weather.lat),
+                    lon=float(weather.lon),
+                    risk_score=int(total_risk),
+                    firms_count=int(firms_count) if firms_rows is not None else None,
+                    firms_avg_confidence=float(firms_avg_conf) if (firms_rows is not None and firms_avg_conf is not None) else None,
                 )
 
                 is_favorite = FavoriteCity.objects.filter(
@@ -167,8 +193,8 @@ def stats_view(request):
     )
 
     recent = (
-        WeatherSearch.objects.filter(user=request.user, is_success=True)
-        .order_by("-created_at")[:120]
+        WeatherSearch.objects.filter(user=request.user, is_success=True, lat__isnull=False, lon__isnull=False)
+        .order_by("-created_at")[:200]
     )
 
     seen = set()
@@ -180,24 +206,21 @@ def stats_view(request):
             continue
         seen.add(key)
 
-        coords = geocode_city(r.city)
-        if not coords:
-            continue
-
-        lat, lon = coords
-        score = calc_simple_fire_risk(r.temperature_c, r.humidity, r.wind_speed)
-        color = risk_color(score)
+        score = r.risk_score if r.risk_score is not None else calc_simple_fire_risk(r.temperature_c, r.humidity, r.wind_speed)
+        color = risk_color(int(score))
 
         markers.append(
             {
                 "city": r.city,
-                "lat": lat,
-                "lon": lon,
+                "lat": float(r.lat),
+                "lon": float(r.lon),
                 "temp": r.temperature_c,
                 "humidity": r.humidity,
                 "wind": r.wind_speed,
-                "score": score,
+                "score": int(score),
                 "color": color,
+                "firms_count": r.firms_count,
+                "firms_avg_confidence": r.firms_avg_confidence,
                 "time": r.created_at.strftime("%d.%m.%Y %H:%M"),
             }
         )
