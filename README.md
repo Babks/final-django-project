@@ -33,7 +33,8 @@ FireRisk Watch — это веб-сервис для оценки и визуа�
 
 **Аналитика и визуализация**
 - Pandas
-- Matplotlib / Plotly
+- Chart.js
+- Leaflet + OpenStreetMap
 
 **Frontend**
 - Django Templates
