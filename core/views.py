@@ -1,13 +1,18 @@
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count
+from django.db.models import Count, Avg
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from core.forms import CitySearchForm, SignUpForm
 from core.models import WeatherSearch, FavoriteCity
-from core.services import get_weather_by_city
+from core.services import (
+    get_weather_by_city,
+    geocode_city,
+    calc_simple_fire_risk,
+    risk_color,
+)
 
 
 def home_view(request):
@@ -95,10 +100,7 @@ def profile_view(request):
     favorites_count = FavoriteCity.objects.filter(user=request.user).count()
     history_count = WeatherSearch.objects.filter(user=request.user).count()
 
-    last_searches = (
-        WeatherSearch.objects.filter(user=request.user)
-        .order_by("-created_at")[:5]
-    )
+    last_searches = WeatherSearch.objects.filter(user=request.user).order_by("-created_at")[:5]
 
     top_cities = (
         WeatherSearch.objects.filter(user=request.user, is_success=True)
@@ -114,6 +116,104 @@ def profile_view(request):
         "top_cities": top_cities,
     }
     return render(request, "core/profile.html", context)
+
+
+@login_required
+def stats_view(request):
+    total = WeatherSearch.objects.filter(user=request.user).count()
+    ok = WeatherSearch.objects.filter(user=request.user, is_success=True).count()
+    err = WeatherSearch.objects.filter(user=request.user, is_success=False).count()
+
+    cities = list(
+        WeatherSearch.objects.filter(
+            user=request.user,
+            is_success=True,
+            temperature_c__isnull=False,
+        )
+        .values_list("city", flat=True)
+        .order_by("city")
+        .distinct()
+    )
+
+    selected_city = (request.GET.get("city") or "").strip()
+    if not selected_city and cities:
+        selected_city = cities[0]
+
+    chart_labels = []
+    chart_temps = []
+
+    if selected_city:
+        qs = (
+            WeatherSearch.objects.filter(
+                user=request.user,
+                is_success=True,
+                temperature_c__isnull=False,
+                city__iexact=selected_city,
+            )
+            .order_by("-created_at")[:50]
+        )
+        rows = list(reversed(list(qs)))
+        chart_labels = [r.created_at.strftime("%d.%m %H:%M") for r in rows]
+        chart_temps = [r.temperature_c for r in rows]
+
+    top_cities = (
+        WeatherSearch.objects.filter(user=request.user, is_success=True)
+        .values("city")
+        .annotate(
+            cnt=Count("id"),
+            avg_temp=Avg("temperature_c"),
+        )
+        .order_by("-cnt", "city")[:10]
+    )
+
+    recent = (
+        WeatherSearch.objects.filter(user=request.user, is_success=True)
+        .order_by("-created_at")[:120]
+    )
+
+    seen = set()
+    markers = []
+
+    for r in recent:
+        key = (r.city or "").strip().lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+
+        coords = geocode_city(r.city)
+        if not coords:
+            continue
+
+        lat, lon = coords
+        score = calc_simple_fire_risk(r.temperature_c, r.humidity, r.wind_speed)
+        color = risk_color(score)
+
+        markers.append(
+            {
+                "city": r.city,
+                "lat": lat,
+                "lon": lon,
+                "temp": r.temperature_c,
+                "humidity": r.humidity,
+                "wind": r.wind_speed,
+                "score": score,
+                "color": color,
+                "time": r.created_at.strftime("%d.%m.%Y %H:%M"),
+            }
+        )
+
+    context = {
+        "total": total,
+        "ok": ok,
+        "err": err,
+        "cities": cities,
+        "selected_city": selected_city,
+        "chart_labels": chart_labels,
+        "chart_temps": chart_temps,
+        "top_cities": top_cities,
+        "markers": markers,
+    }
+    return render(request, "core/stats.html", context)
 
 
 @login_required

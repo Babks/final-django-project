@@ -1,0 +1,238 @@
+{% extends "core/base.html" %}
+{% block title %}Статистика — FireRisk Watch{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+    #riskMap { height: 420px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-3">Статистика</h1>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="text-muted">Всего запросов</div>
+                <div class="fs-3">{{ total }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="text-muted">Успешных</div>
+                <div class="fs-3">{{ ok }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="text-muted">Ошибок</div>
+                <div class="fs-3">{{ err }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <h2 class="h5 mb-0">Интерактивный график температуры</h2>
+
+            <form method="get" class="d-flex gap-2 align-items-center">
+                <label class="text-muted small" for="citySelect">Город:</label>
+                <select class="form-select form-select-sm" id="citySelect" name="city" onchange="this.form.submit()"
+                        style="min-width: 220px;">
+                    {% if cities %}
+                        {% for c in cities %}
+                            <option value="{{ c }}" {% if c|lower == selected_city|lower %}selected{% endif %}>
+                                {{ c }}
+                            </option>
+                        {% endfor %}
+                    {% endif %}
+                </select>
+            </form>
+        </div>
+
+        {% if chart_labels and chart_temps %}
+            {{ chart_labels|json_script:"chart-labels" }}
+            {{ chart_temps|json_script:"chart-temps" }}
+            <canvas id="tempChart" height="110"></canvas>
+            <div class="text-muted small mt-2">
+                Показаны последние измерения температуры по выбранному городу из истории запросов.
+            </div>
+        {% else %}
+            <div class="alert alert-secondary mb-0">
+                Недостаточно данных для графика. Сделай несколько успешных запросов погоды (и выбери город).
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h2 class="h5 mb-3">Карта рисков (интерактивная)</h2>
+
+        {% if markers %}
+            {{ markers|json_script:"map-markers" }}
+            <div id="riskMap" class="rounded"></div>
+            <div class="text-muted small mt-2">
+                Цвет маркера — условный риск (пока только по погоде). Далее подключим NASA FIRMS для реальных термоточек.
+            </div>
+        {% else %}
+            <div class="alert alert-secondary mb-0">
+                Нет данных для карты. Сделай несколько успешных запросов погоды (нужны города в истории).
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <h2 class="h5 mb-3">ТОП-10 городов по успешным запросам</h2>
+
+        {% if top_cities %}
+            <div class="table-responsive">
+                <table class="table table-sm table-striped align-middle">
+                    <thead>
+                    <tr>
+                        <th>Город</th>
+                        <th>Кол-во успешных</th>
+                        <th>Средняя температура</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for row in top_cities %}
+                        <tr>
+                            <td>{{ row.city }}</td>
+                            <td>{{ row.cnt }}</td>
+                            <td>
+                                {% if row.avg_temp != None %}
+                                    {{ row.avg_temp|floatformat:1 }} °C
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-secondary mb-0">
+                Пока нет успешных запросов — таблица пустая.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+(function () {
+    const labelsEl = document.getElementById("chart-labels");
+    const tempsEl = document.getElementById("chart-temps");
+    const canvas = document.getElementById("tempChart");
+
+    if (labelsEl && tempsEl && canvas) {
+        const labels = JSON.parse(labelsEl.textContent);
+        const temps = JSON.parse(tempsEl.textContent);
+
+        new Chart(canvas, {
+            type: "line",
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: "Температура (°C)",
+                    data: temps,
+                    tension: 0.25,
+                    pointRadius: 3,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: true }
+                },
+                scales: {
+                    x: {
+                        ticks: { maxRotation: 60, minRotation: 40 }
+                    }
+                }
+            }
+        });
+    }
+
+    const markersEl = document.getElementById("map-markers");
+    const mapDiv = document.getElementById("riskMap");
+    if (markersEl && mapDiv) {
+        const markers = JSON.parse(markersEl.textContent);
+
+        const map = L.map("riskMap");
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 18,
+            attribution: "&copy; OpenStreetMap"
+        }).addTo(map);
+
+        const bounds = [];
+        const colorToHex = (c) => {
+            if (c === "green") return "#2ecc71";
+            if (c === "yellow") return "#f1c40f";
+            if (c === "orange") return "#e67e22";
+            return "#e74c3c";
+        };
+
+        markers.forEach(m => {
+            const color = colorToHex(m.color);
+
+            const icon = L.divIcon({
+                className: "risk-marker",
+                html: `<div style="
+                    width:14px;height:14px;border-radius:50%;
+                    background:${color};
+                    border:2px solid #222;
+                    box-shadow:0 0 0 2px rgba(255,255,255,0.7);
+                "></div>`,
+                iconSize: [14, 14],
+                iconAnchor: [7, 7],
+            });
+
+            const marker = L.marker([m.lat, m.lon], { icon }).addTo(map);
+
+            const temp = (m.temp !== null && m.temp !== undefined) ? `${m.temp}°C` : "—";
+            const hum = (m.humidity !== null && m.humidity !== undefined) ? `${m.humidity}%` : "—";
+            const wind = (m.wind !== null && m.wind !== undefined) ? `${m.wind} м/с` : "—";
+
+            marker.bindPopup(`
+                <div style="min-width:220px">
+                    <div><strong>${m.city}</strong></div>
+                    <div class="text-muted" style="font-size:12px">${m.time}</div>
+                    <hr style="margin:8px 0"/>
+                    <div>Темп.: <strong>${temp}</strong></div>
+                    <div>Влажность: <strong>${hum}</strong></div>
+                    <div>Ветер: <strong>${wind}</strong></div>
+                    <div style="margin-top:6px">
+                        Риск: <strong>${m.score}/100</strong>
+                    </div>
+                </div>
+            `);
+
+            bounds.push([m.lat, m.lon]);
+        });
+
+        if (bounds.length) {
+            map.fitBounds(bounds, { padding: [30, 30] });
+        } else {
+            map.setView([55.751244, 37.618423], 4); // fallback на РФ
+        }
+    }
+})();
+</script>
+{% endblock %}
