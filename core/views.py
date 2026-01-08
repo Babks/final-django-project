@@ -1,15 +1,29 @@
+from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from core.forms import CitySearchForm
+from core.forms import CitySearchForm, SignUpForm
 from core.models import WeatherSearch, FavoriteCity
 from core.services import get_weather_by_city
 
 
 def home_view(request):
     return render(request, "core/home.html")
+
+
+def signup_view(request):
+    if request.user.is_authenticated:
+        return redirect("home")
+
+    form = SignUpForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        user = form.save()
+        login(request, user)
+        return redirect("home")
+
+    return render(request, "registration/signup.html", {"form": form})
 
 
 def weather_search_view(request):
