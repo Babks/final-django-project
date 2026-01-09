@@ -14,8 +14,8 @@
 </div>
 
 {% if not user.is_authenticated %}
-<div class="alert alert-info">
-    Чтобы сохранять историю и избранные города — <a href="{% url 'login' %}">войдите</a>.
-</div>
+    <div class="alert alert-info">
+        Чтобы сохранять историю и избранные города — <a href="{% url 'login' %}">войдите</a>.
+    </div>
 {% endif %}
 {% endblock %}

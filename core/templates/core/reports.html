@@ -24,9 +24,7 @@
                     <td class="text-end">{{ r.avg_risk|default:"—" }}</td>
                     <td class="text-end">{{ r.max_risk|default:"—" }}</td>
                     <td class="text-end">
-                        <a class="btn btn-outline-primary btn-sm" href="{% url 'report_detail' r.id %}">
-                            Открыть
-                        </a>
+                        <a class="btn btn-outline-primary btn-sm" href="{% url 'report_detail' r.id %}">Открыть</a>
                     </td>
                 </tr>
             {% endfor %}

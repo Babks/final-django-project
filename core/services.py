@@ -1,8 +1,8 @@
-from dataclasses import dataclass
-from typing import Optional, Dict, Tuple, Any, List, Iterable
 import csv
 import io
 import math
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 from django.conf import settings
@@ -23,8 +23,7 @@ class WeatherResult:
 
 
 def get_weather_by_city(city: str) -> Optional[WeatherResult]:
-    api_key = getattr(settings, "OPENWEATHER_API_KEY", "") or ""
-    api_key = api_key.strip()
+    api_key = (getattr(settings, "OPENWEATHER_API_KEY", "") or "").strip()
     if not api_key:
         return None
 
@@ -57,8 +56,9 @@ def get_weather_by_city(city: str) -> Optional[WeatherResult]:
         description = ""
         icon = ""
         if weather_list:
-            description = str((weather_list[0] or {}).get("description") or "")
-            icon = str((weather_list[0] or {}).get("icon") or "")
+            first = weather_list[0] or {}
+            description = str(first.get("description") or "")
+            icon = str(first.get("icon") or "")
 
         icon_url = f"https://openweathermap.org/img/wn/{icon}@2x.png" if icon else ""
 
@@ -86,9 +86,9 @@ def calc_simple_fire_risk(temp_c: Optional[float], humidity: Optional[int], wind
     h = int(humidity) if humidity is not None else 50
     w = float(wind_speed) if wind_speed is not None else 0.0
 
-    t_score = max(0.0, min(1.0, (t + 10.0) / 45.0))        # -10..35
-    h_score = max(0.0, min(1.0, (100.0 - h) / 100.0))      # чем суше, тем больше
-    w_score = max(0.0, min(1.0, w / 20.0))                 # 0..20 м/с
+    t_score = max(0.0, min(1.0, (t + 10.0) / 45.0))
+    h_score = max(0.0, min(1.0, (100.0 - h) / 100.0))
+    w_score = max(0.0, min(1.0, w / 20.0))
 
     score = 100.0 * (0.45 * t_score + 0.35 * h_score + 0.20 * w_score)
     return int(round(max(0.0, min(100.0, score))))
@@ -111,15 +111,10 @@ def _bbox_around_point(lat: float, lon: float, radius_km: float) -> Tuple[float,
         cos_lat = 1e-6
     delta_lon = radius_km / (111.0 * cos_lat)
 
-    west = lon - delta_lon
-    east = lon + delta_lon
-    south = lat - delta_lat
-    north = lat + delta_lat
-
-    west = max(-180.0, min(180.0, west))
-    east = max(-180.0, min(180.0, east))
-    south = max(-90.0, min(90.0, south))
-    north = max(-90.0, min(90.0, north))
+    west = max(-180.0, min(180.0, lon - delta_lon))
+    east = max(-180.0, min(180.0, lon + delta_lon))
+    south = max(-90.0, min(90.0, lat - delta_lat))
+    north = max(-90.0, min(90.0, lat + delta_lat))
 
     return west, south, east, north
 
@@ -129,12 +124,12 @@ def _looks_like_error_payload(text: str) -> bool:
     if not t:
         return False
     return (
-        t.startswith("<!doctype") or
-        t.startswith("<html") or
-        "error" in t[:200] or
-        "invalid" in t[:200] or
-        "not authorized" in t[:300] or
-        "forbidden" in t[:300]
+        t.startswith("<!doctype")
+        or t.startswith("<html")
+        or "error" in t[:200]
+        or "invalid" in t[:200]
+        or "not authorized" in t[:300]
+        or "forbidden" in t[:300]
     )
 
 
@@ -146,8 +141,7 @@ def firms_get_area_events_for_source(
     radius_km: float = 50.0,
     day_range: int = 7,
 ) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
-    map_key = getattr(settings, "FIRMS_MAP_KEY", "") or ""
-    map_key = map_key.strip()
+    map_key = (getattr(settings, "FIRMS_MAP_KEY", "") or "").strip()
     if not map_key:
         return None, "FIRMS_MAP_KEY не задан"
 
@@ -163,7 +157,6 @@ def firms_get_area_events_for_source(
 
     west, south, east, north = _bbox_around_point(lat, lon, radius_km)
     area = f"{west:.6f},{south:.6f},{east:.6f},{north:.6f}"
-
     url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{map_key}/{source}/{area}/{day_range}"
 
     try:
@@ -200,12 +193,7 @@ def firms_get_area_events(
 ) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str], Optional[str]]:
     first = (getattr(settings, "FIRMS_SOURCE", "") or "").strip() or "VIIRS_SNPP_NRT"
 
-    candidates = [
-        first,
-        "VIIRS_SNPP_NRT",
-        "VIIRS_NOAA20_NRT",
-        "MODIS_NRT",
-    ]
+    candidates = [first, "VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT", "MODIS_NRT"]
 
     seen = set()
     ordered: List[str] = []
@@ -244,19 +232,12 @@ def firms_get_area_events(
 
 
 def firms_aggregate(rows: Optional[List[Dict[str, Any]]]) -> Tuple[int, Optional[float]]:
-    if rows is None:
+    if rows is None or not rows:
         return 0, None
-    if not rows:
-        return 0, None  # пусто => не “0.0”, а “нет данных”
 
     conf_vals: List[float] = []
     for r in rows:
-        raw = (
-            r.get("confidence")
-            or r.get("Confidence")
-            or r.get("CONFIDENCE")
-            or ""
-        )
+        raw = r.get("confidence") or r.get("Confidence") or r.get("CONFIDENCE") or ""
         try:
             conf_vals.append(float(str(raw).strip()))
         except Exception:
@@ -268,7 +249,6 @@ def firms_aggregate(rows: Optional[List[Dict[str, Any]]]) -> Tuple[int, Optional
 
 def calc_fire_activity_score(firms_count: int, avg_confidence: Optional[float]) -> int:
     c = max(0, int(firms_count))
-
     count_score = math.log1p(min(c, 100)) / math.log1p(50)
 
     conf = None
@@ -278,8 +258,7 @@ def calc_fire_activity_score(firms_count: int, avg_confidence: Optional[float]) 
     except Exception:
         conf = None
 
-    conf_score = (conf / 100.0) if conf is not None else 0.5  # если нет confidence — среднее
-
+    conf_score = (conf / 100.0) if conf is not None else 0.5
     score = 100.0 * (0.65 * count_score + 0.35 * conf_score)
     return int(round(max(0.0, min(100.0, score))))
 

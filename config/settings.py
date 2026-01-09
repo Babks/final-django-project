@@ -1,5 +1,6 @@
-from pathlib import Path
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -9,15 +10,8 @@ load_dotenv(BASE_DIR / ".env")
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-change-me")
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
-ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "localhost",
-    "babks.pythonanywhere.com",
-]
-
-CSRF_TRUSTED_ORIGINS = [
-    "https://babks.pythonanywhere.com",
-]
+ALLOWED_HOSTS = ["127.0.0.1", "localhost", "babks.pythonanywhere.com"]
+CSRF_TRUSTED_ORIGINS = ["https://babks.pythonanywhere.com"]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -53,7 +47,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
             ],
         },
-    },
+    }
 ]
 
 WSGI_APPLICATION = "config.wsgi.application"

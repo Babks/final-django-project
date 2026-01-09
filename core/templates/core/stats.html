@@ -93,9 +93,7 @@
                 <select class="form-select form-select-sm" id="citySelect" name="city" onchange="this.form.submit()">
                     {% if cities %}
                         {% for c in cities %}
-                            <option value="{{ c }}" {% if c|lower == selected_city|lower %}selected{% endif %}>
-                                {{ c }}
-                            </option>
+                            <option value="{{ c }}" {% if c|lower == selected_city|lower %}selected{% endif %}>{{ c }}</option>
                         {% endfor %}
                     {% endif %}
                 </select>
@@ -122,34 +120,20 @@
 <div class="card mb-3">
     <div class="card-body">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-            <h2 class="h5 mb-0">Карта рисков (интерактивная)</h2>
+            <h2 class="h5 mb-0">Карта рисков</h2>
 
             <div class="risk-legend">
-                <div class="item">
-                    <span class="dot" style="background:#2ecc71;"></span>
-                    <span>Низкий (0–24)</span>
-                </div>
-                <div class="item">
-                    <span class="dot" style="background:#f1c40f;"></span>
-                    <span>Умеренный (25–49)</span>
-                </div>
-                <div class="item">
-                    <span class="dot" style="background:#e67e22;"></span>
-                    <span>Высокий (50–74)</span>
-                </div>
-                <div class="item">
-                    <span class="dot" style="background:#e74c3c;"></span>
-                    <span>Критический (75–100)</span>
-                </div>
+                <div class="item"><span class="dot" style="background:#2ecc71;"></span><span>Низкий (0–24)</span></div>
+                <div class="item"><span class="dot" style="background:#f1c40f;"></span><span>Умеренный (25–49)</span></div>
+                <div class="item"><span class="dot" style="background:#e67e22;"></span><span>Высокий (50–74)</span></div>
+                <div class="item"><span class="dot" style="background:#e74c3c;"></span><span>Критический (75–100)</span></div>
             </div>
         </div>
 
         {% if markers %}
             {{ markers|json_script:"map-markers" }}
             <div id="riskMap" class="rounded"></div>
-            <div class="text-muted small mt-2">
-                Маркер показывает рассчитанный риск (0–100) для города.
-            </div>
+            <div class="text-muted small mt-2">Маркер показывает рассчитанный риск (0–100) для города.</div>
         {% else %}
             <div class="alert alert-secondary mb-0">
                 Нет данных для карты. Сделай несколько успешных запросов погоды (нужны города в истории).
@@ -177,22 +161,14 @@
                         <tr>
                             <td>{{ row.city }}</td>
                             <td>{{ row.cnt }}</td>
-                            <td>
-                                {% if row.avg_temp != None %}
-                                    {{ row.avg_temp|floatformat:1 }} °C
-                                {% else %}
-                                    —
-                                {% endif %}
-                            </td>
+                            <td>{% if row.avg_temp != None %}{{ row.avg_temp|floatformat:1 }} °C{% else %}—{% endif %}</td>
                         </tr>
                     {% endfor %}
                     </tbody>
                 </table>
             </div>
         {% else %}
-            <div class="alert alert-secondary mb-0">
-                Пока нет успешных запросов — таблица пустая.
-            </div>
+            <div class="alert alert-secondary mb-0">Пока нет успешных запросов — таблица пустая.</div>
         {% endif %}
     </div>
 </div>
@@ -227,15 +203,14 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: { legend: { display: true } },
-                scales: {
-                    x: { ticks: { maxRotation: 60, minRotation: 40 } }
-                }
+                scales: { x: { ticks: { maxRotation: 60, minRotation: 40 } } }
             }
         });
     }
 
     const markersEl = document.getElementById("map-markers");
     const mapDiv = document.getElementById("riskMap");
+
     if (markersEl && mapDiv) {
         const markers = JSON.parse(markersEl.textContent);
 
@@ -254,7 +229,7 @@
             return "#e74c3c";
         };
 
-        markers.forEach(m => {
+        markers.forEach((m) => {
             const color = colorToHex(m.color);
 
             const icon = L.divIcon({
@@ -271,7 +246,9 @@
             const wind = (m.wind !== null && m.wind !== undefined) ? `${m.wind} м/с` : "—";
 
             const firmsCount = (m.firms_count !== null && m.firms_count !== undefined) ? m.firms_count : "—";
-            const firmsConf = (m.firms_avg_confidence !== null && m.firms_avg_confidence !== undefined) ? Number(m.firms_avg_confidence).toFixed(1) : "—";
+            const firmsConf = (m.firms_avg_confidence !== null && m.firms_avg_confidence !== undefined)
+                ? Number(m.firms_avg_confidence).toFixed(1)
+                : "—";
 
             marker.bindPopup(`
                 <div style="min-width:240px">

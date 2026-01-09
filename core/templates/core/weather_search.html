@@ -19,44 +19,44 @@
 </form>
 
 {% if error_message %}
-<div class="alert alert-danger">{{ error_message }}</div>
+    <div class="alert alert-danger">{{ error_message }}</div>
 {% endif %}
 
 {% if weather %}
-<div class="card">
-    <div class="card-body">
-        <h2 class="h5 mb-3">{{ weather.city }}{% if weather.country %}, {{ weather.country }}{% endif %}</h2>
+    <div class="card">
+        <div class="card-body">
+            <h2 class="h5 mb-3">{{ weather.city }}{% if weather.country %}, {{ weather.country }}{% endif %}</h2>
 
-        <div class="d-flex align-items-center gap-3">
-            {% if weather.icon_url %}
-                <img src="{{ weather.icon_url }}" alt="icon" width="60" height="60">
-            {% endif %}
-            <ul class="mb-0">
-                <li>Температура: <strong>{{ weather.temp }}</strong> °C</li>
-                <li>Ощущается как: <strong>{{ weather.feels_like }}</strong> °C</li>
-                <li>Описание: {{ weather.description }}</li>
-                <li>Влажность: {{ weather.humidity }}%</li>
-                <li>Ветер: {{ weather.wind_speed }} м/с</li>
-            </ul>
-        </div>
-
-        {% if user.is_authenticated %}
-            <form method="post" action="{% url 'favorite_toggle' %}" class="mt-3">
-                {% csrf_token %}
-                <input type="hidden" name="city" value="{{ weather.city }}">
-                <input type="hidden" name="next" value="{% url 'weather_search' %}">
-                {% if is_favorite %}
-                    <button type="submit" class="btn btn-outline-danger">Удалить из избранного</button>
-                {% else %}
-                    <button type="submit" class="btn btn-outline-primary">Добавить в избранное</button>
+            <div class="d-flex align-items-center gap-3">
+                {% if weather.icon_url %}
+                    <img src="{{ weather.icon_url }}" alt="icon" width="60" height="60">
                 {% endif %}
-            </form>
-        {% else %}
-            <div class="alert alert-info mt-3 mb-0">
-                Чтобы добавить в избранное — <a href="{% url 'login' %}">войдите</a>.
+                <ul class="mb-0">
+                    <li>Температура: <strong>{{ weather.temp }}</strong> °C</li>
+                    <li>Ощущается как: <strong>{{ weather.feels_like }}</strong> °C</li>
+                    <li>Описание: {{ weather.description }}</li>
+                    <li>Влажность: {{ weather.humidity }}%</li>
+                    <li>Ветер: {{ weather.wind_speed }} м/с</li>
+                </ul>
             </div>
-        {% endif %}
+
+            {% if user.is_authenticated %}
+                <form method="post" action="{% url 'favorite_toggle' %}" class="mt-3">
+                    {% csrf_token %}
+                    <input type="hidden" name="city" value="{{ weather.city }}">
+                    <input type="hidden" name="next" value="{% url 'weather_search' %}">
+                    {% if is_favorite %}
+                        <button type="submit" class="btn btn-outline-danger">Удалить из избранного</button>
+                    {% else %}
+                        <button type="submit" class="btn btn-outline-primary">Добавить в избранное</button>
+                    {% endif %}
+                </form>
+            {% else %}
+                <div class="alert alert-info mt-3 mb-0">
+                    Чтобы добавить в избранное — <a href="{% url 'login' %}">войдите</a>.
+                </div>
+            {% endif %}
+        </div>
     </div>
-</div>
 {% endif %}
 {% endblock %}

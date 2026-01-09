@@ -28,22 +28,22 @@
                 <hr>
 
                 {% if last_report %}
-                <div class="border rounded p-3 mb-3">
-                    <div class="text-muted small">Последний отчёт</div>
-                    <div class="fw-semibold">{{ last_report.day|date:"d.m.Y" }}</div>
-                    <div class="small mt-2">
-                        <div>Запросов учтено: <strong>{{ last_report.searches_count }}</strong></div>
-                        <div>Средний риск: <strong>{{ last_report.avg_risk|default:"—" }}</strong></div>
-                        <div>Максимальный риск: <strong>{{ last_report.max_risk|default:"—" }}</strong></div>
+                    <div class="border rounded p-3 mb-3">
+                        <div class="text-muted small">Последний отчёт</div>
+                        <div class="fw-semibold">{{ last_report.day|date:"d.m.Y" }}</div>
+                        <div class="small mt-2">
+                            <div>Запросов учтено: <strong>{{ last_report.searches_count }}</strong></div>
+                            <div>Средний риск: <strong>{{ last_report.avg_risk|default:"—" }}</strong></div>
+                            <div>Максимальный риск: <strong>{{ last_report.max_risk|default:"—" }}</strong></div>
+                        </div>
+                        <div class="mt-2">
+                            <a class="btn btn-outline-dark btn-sm" href="{% url 'reports' %}">Открыть отчёты</a>
+                        </div>
                     </div>
-                    <div class="mt-2">
-                        <a class="btn btn-outline-dark btn-sm" href="{% url 'reports' %}">Открыть отчёты</a>
-                    </div>
-                </div>
                 {% else %}
-                <div class="alert alert-secondary mb-3">
-                    Пока нет отчётов. Сделай хотя бы один успешный запрос погоды.
-                </div>
+                    <div class="alert alert-secondary mb-3">
+                        Пока нет отчётов. Сделай хотя бы один успешный запрос погоды.
+                    </div>
                 {% endif %}
 
                 <a class="btn btn-outline-secondary btn-sm" href="{% url 'password_change' %}">
@@ -143,5 +143,4 @@
         </div>
     </div>
 </div>
-
 {% endblock %}

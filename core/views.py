@@ -1,21 +1,21 @@
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Avg, Max, OuterRef, Subquery, F
-from django.shortcuts import render, redirect, get_object_or_404
+from django.db.models import Avg, Count, F, Max, OuterRef, Subquery
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from core.forms import CitySearchForm, SignUpForm
-from core.models import WeatherSearch, FavoriteCity, RiskReport
+from core.models import FavoriteCity, RiskReport, WeatherSearch
 from core.services import (
-    get_weather_by_city,
-    calc_simple_fire_risk,
-    risk_color,
-    firms_get_area_events,
-    firms_aggregate,
     calc_fire_activity_score,
+    calc_simple_fire_risk,
     calc_total_risk,
+    firms_aggregate,
+    firms_get_area_events,
+    get_weather_by_city,
+    risk_color,
 )
 
 
@@ -40,8 +40,7 @@ def _update_daily_report(user, weather_search_obj: WeatherSearch) -> None:
     if user is None or not getattr(user, "is_authenticated", False):
         return
 
-    today = timezone.localdate()
-    report, _ = RiskReport.objects.get_or_create(user=user, day=today)
+    report, _ = RiskReport.objects.get_or_create(user=user, day=timezone.localdate())
     report.searches.add(weather_search_obj)
 
     agg = report.searches.filter(risk_score__isnull=False).aggregate(
@@ -62,7 +61,8 @@ def _update_daily_report(user, weather_search_obj: WeatherSearch) -> None:
 
 def weather_search_view(request):
     initial_city = (request.GET.get("city") or "").strip()
-    form = CitySearchForm(request.POST or None, initial={"city": initial_city} if initial_city else None)
+    initial = {"city": initial_city} if initial_city else None
+    form = CitySearchForm(request.POST or None, initial=initial)
 
     weather = None
     error_message = ""
@@ -80,28 +80,18 @@ def weather_search_view(request):
                     city=city,
                     is_success=False,
                     error_message=error_message,
-                    temperature_c=None,
-                    description="",
-                    wind_speed=None,
-                    humidity=None,
-                    lat=None,
-                    lon=None,
-                    risk_score=None,
-                    firms_count=None,
-                    firms_avg_confidence=None,
                 )
         else:
             if request.user.is_authenticated:
                 weather_score = calc_simple_fire_risk(weather.temp, weather.humidity, weather.wind_speed)
 
-                firms_rows, firms_source, firms_error = firms_get_area_events(
+                firms_rows, _, _ = firms_get_area_events(
                     weather.lat,
                     weather.lon,
                     radius_km=50.0,
                     day_range=7,
                 )
                 firms_count, firms_avg_conf = firms_aggregate(firms_rows)
-
                 fire_score = calc_fire_activity_score(firms_count, firms_avg_conf) if firms_rows is not None else 0
                 total_risk = calc_total_risk(weather_score, fire_score)
 
@@ -109,7 +99,6 @@ def weather_search_view(request):
                     user=request.user,
                     city=weather.city,
                     is_success=True,
-                    error_message="",
                     temperature_c=int(round(weather.temp)),
                     description=weather.description or "",
                     wind_speed=float(weather.wind_speed) if weather.wind_speed is not None else None,
@@ -118,7 +107,9 @@ def weather_search_view(request):
                     lon=float(weather.lon),
                     risk_score=int(total_risk),
                     firms_count=int(firms_count) if firms_rows is not None else None,
-                    firms_avg_confidence=float(firms_avg_conf) if (firms_rows is not None and firms_avg_conf is not None) else None,
+                    firms_avg_confidence=float(firms_avg_conf)
+                    if (firms_rows is not None and firms_avg_conf is not None)
+                    else None,
                 )
 
                 _update_daily_report(request.user, ws)
@@ -128,13 +119,16 @@ def weather_search_view(request):
                     city__iexact=weather.city,
                 ).exists()
 
-    context = {
-        "form": form,
-        "weather": weather,
-        "error_message": error_message,
-        "is_favorite": is_favorite,
-    }
-    return render(request, "core/weather_search.html", context)
+    return render(
+        request,
+        "core/weather_search.html",
+        {
+            "form": form,
+            "weather": weather,
+            "error_message": error_message,
+            "is_favorite": is_favorite,
+        },
+    )
 
 
 @login_required
@@ -142,23 +136,16 @@ def favorites_view(request):
     sort = (request.GET.get("sort") or "alpha").strip().lower()
 
     last_success = (
-        WeatherSearch.objects.filter(
-            user=request.user,
-            is_success=True,
-            city=OuterRef("city"),
-        )
+        WeatherSearch.objects.filter(user=request.user, is_success=True, city=OuterRef("city"))
         .order_by("-created_at")
     )
 
-    qs = (
-        FavoriteCity.objects.filter(user=request.user)
-        .annotate(
-            last_time=Subquery(last_success.values("created_at")[:1]),
-            last_temp=Subquery(last_success.values("temperature_c")[:1]),
-            last_risk=Subquery(last_success.values("risk_score")[:1]),
-            last_firms_count=Subquery(last_success.values("firms_count")[:1]),
-            last_firms_conf=Subquery(last_success.values("firms_avg_confidence")[:1]),
-        )
+    qs = FavoriteCity.objects.filter(user=request.user).annotate(
+        last_time=Subquery(last_success.values("created_at")[:1]),
+        last_temp=Subquery(last_success.values("temperature_c")[:1]),
+        last_risk=Subquery(last_success.values("risk_score")[:1]),
+        last_firms_count=Subquery(last_success.values("firms_count")[:1]),
+        last_firms_conf=Subquery(last_success.values("firms_avg_confidence")[:1]),
     )
 
     if sort == "risk":
@@ -193,14 +180,17 @@ def profile_view(request):
 
     last_report = RiskReport.objects.filter(user=request.user).order_by("-day", "-created_at").first()
 
-    context = {
-        "favorites_count": favorites_count,
-        "history_count": history_count,
-        "last_searches": last_searches,
-        "top_cities": top_cities,
-        "last_report": last_report,
-    }
-    return render(request, "core/profile.html", context)
+    return render(
+        request,
+        "core/profile.html",
+        {
+            "favorites_count": favorites_count,
+            "history_count": history_count,
+            "last_searches": last_searches,
+            "top_cities": top_cities,
+            "last_report": last_report,
+        },
+    )
 
 
 @login_required
@@ -210,11 +200,7 @@ def stats_view(request):
     err = WeatherSearch.objects.filter(user=request.user, is_success=False).count()
 
     cities = list(
-        WeatherSearch.objects.filter(
-            user=request.user,
-            is_success=True,
-            temperature_c__isnull=False,
-        )
+        WeatherSearch.objects.filter(user=request.user, is_success=True, temperature_c__isnull=False)
         .values_list("city", flat=True)
         .order_by("city")
         .distinct()
@@ -248,10 +234,12 @@ def stats_view(request):
         .order_by("-cnt", "city")[:10]
     )
 
-    recent = (
-        WeatherSearch.objects.filter(user=request.user, is_success=True, lat__isnull=False, lon__isnull=False)
-        .order_by("-created_at")[:200]
-    )
+    recent = WeatherSearch.objects.filter(
+        user=request.user,
+        is_success=True,
+        lat__isnull=False,
+        lon__isnull=False,
+    ).order_by("-created_at")[:200]
 
     seen = set()
     markers = []
@@ -262,8 +250,11 @@ def stats_view(request):
             continue
         seen.add(key)
 
-        score = r.risk_score if r.risk_score is not None else calc_simple_fire_risk(r.temperature_c, r.humidity, r.wind_speed)
-        color = risk_color(int(score))
+        score = (
+            r.risk_score
+            if r.risk_score is not None
+            else calc_simple_fire_risk(r.temperature_c, r.humidity, r.wind_speed)
+        )
 
         markers.append(
             {
@@ -274,25 +265,28 @@ def stats_view(request):
                 "humidity": r.humidity,
                 "wind": r.wind_speed,
                 "score": int(score),
-                "color": color,
+                "color": risk_color(int(score)),
                 "firms_count": r.firms_count,
                 "firms_avg_confidence": r.firms_avg_confidence,
                 "time": r.created_at.strftime("%d.%m.%Y %H:%M"),
             }
         )
 
-    context = {
-        "total": total,
-        "ok": ok,
-        "err": err,
-        "cities": cities,
-        "selected_city": selected_city,
-        "chart_labels": chart_labels,
-        "chart_temps": chart_temps,
-        "top_cities": top_cities,
-        "markers": markers,
-    }
-    return render(request, "core/stats.html", context)
+    return render(
+        request,
+        "core/stats.html",
+        {
+            "total": total,
+            "ok": ok,
+            "err": err,
+            "cities": cities,
+            "selected_city": selected_city,
+            "chart_labels": chart_labels,
+            "chart_temps": chart_temps,
+            "top_cities": top_cities,
+            "markers": markers,
+        },
+    )
 
 
 @login_required
