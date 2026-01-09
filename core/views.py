@@ -1,12 +1,13 @@
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Avg
+from django.db.models import Count, Avg, Max
 from django.shortcuts import render, redirect
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from core.forms import CitySearchForm, SignUpForm
-from core.models import WeatherSearch, FavoriteCity, City
+from core.models import WeatherSearch, FavoriteCity, RiskReport
 from core.services import (
     get_weather_by_city,
     calc_simple_fire_risk,
@@ -33,6 +34,30 @@ def signup_view(request):
         return redirect("home")
 
     return render(request, "registration/signup.html", {"form": form})
+
+
+def _update_daily_report(user, weather_search_obj: WeatherSearch) -> None:
+    if user is None or not getattr(user, "is_authenticated", False):
+        return
+
+    today = timezone.localdate()
+    report, _ = RiskReport.objects.get_or_create(user=user, day=today)
+    report.searches.add(weather_search_obj)
+
+    agg = report.searches.filter(risk_score__isnull=False).aggregate(
+        avg_val=Avg("risk_score"),
+        max_val=Max("risk_score"),
+        cnt=Count("id"),
+    )
+
+    report.searches_count = int(agg.get("cnt") or 0)
+
+    avg_val = agg.get("avg_val")
+    max_val = agg.get("max_val")
+
+    report.avg_risk = int(round(float(avg_val))) if avg_val is not None else None
+    report.max_risk = int(max_val) if max_val is not None else None
+    report.save(update_fields=["searches_count", "avg_risk", "max_risk"])
 
 
 def weather_search_view(request):
@@ -79,7 +104,7 @@ def weather_search_view(request):
                 fire_score = calc_fire_activity_score(firms_count, firms_avg_conf) if firms_rows is not None else 0
                 total_risk = calc_total_risk(weather_score, fire_score)
 
-                WeatherSearch.objects.create(
+                ws = WeatherSearch.objects.create(
                     user=request.user,
                     city=weather.city,
                     is_success=True,
@@ -92,19 +117,14 @@ def weather_search_view(request):
                     lon=float(weather.lon),
                     risk_score=int(total_risk),
                     firms_count=int(firms_count) if firms_rows is not None else None,
-                    firms_avg_confidence=float(firms_avg_conf)
-                    if (firms_rows is not None and firms_avg_conf is not None)
-                    else None,
+                    firms_avg_confidence=float(firms_avg_conf) if (firms_rows is not None and firms_avg_conf is not None) else None,
                 )
 
-                City.objects.update_or_create(
-                    name=weather.city,
-                    defaults={"lat": float(weather.lat), "lon": float(weather.lon)},
-                )
+                _update_daily_report(request.user, ws)
 
                 is_favorite = FavoriteCity.objects.filter(
                     user=request.user,
-                    city__name__iexact=weather.city,
+                    city__iexact=weather.city,
                 ).exists()
 
     context = {
@@ -118,7 +138,7 @@ def weather_search_view(request):
 
 @login_required
 def favorites_view(request):
-    favorites = FavoriteCity.objects.filter(user=request.user).select_related("city").order_by("city__name")
+    favorites = FavoriteCity.objects.filter(user=request.user).order_by("city")
     return render(request, "core/favorites.html", {"favorites": favorites})
 
 
@@ -142,11 +162,14 @@ def profile_view(request):
         .order_by("-cnt", "city")[:5]
     )
 
+    last_report = RiskReport.objects.filter(user=request.user).order_by("-day", "-created_at").first()
+
     context = {
         "favorites_count": favorites_count,
         "history_count": history_count,
         "last_searches": last_searches,
         "top_cities": top_cities,
+        "last_report": last_report,
     }
     return render(request, "core/profile.html", context)
 
@@ -252,12 +275,10 @@ def toggle_favorite_city_view(request):
     if not city_name:
         return redirect(next_url)
 
-    city_obj, _ = City.objects.get_or_create(name=city_name)
-
-    obj = FavoriteCity.objects.filter(user=request.user, city=city_obj).first()
+    obj = FavoriteCity.objects.filter(user=request.user, city__iexact=city_name).first()
     if obj:
         obj.delete()
     else:
-        FavoriteCity.objects.create(user=request.user, city=city_obj)
+        FavoriteCity.objects.create(user=request.user, city=city_name)
 
     return redirect(next_url)

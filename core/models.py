@@ -2,25 +2,6 @@ from django.conf import settings
 from django.db import models
 
 
-class City(models.Model):
-    name = models.CharField(max_length=120, unique=True)
-    lat = models.FloatField(null=True, blank=True)
-    lon = models.FloatField(null=True, blank=True)
-
-    users = models.ManyToManyField(
-        settings.AUTH_USER_MODEL,
-        through="FavoriteCity",
-        related_name="favorite_cities",
-        blank=True,
-    )
-
-    class Meta:
-        ordering = ["name"]
-
-    def __str__(self) -> str:
-        return self.name
-
-
 class WeatherSearch(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -59,18 +40,41 @@ class FavoriteCity(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="favorite_city_links",
+        related_name="favorite_cities",
     )
-    city = models.ForeignKey(
-        City,
-        on_delete=models.CASCADE,
-        related_name="favorite_links",
-    )
+    city = models.CharField(max_length=120)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = ("user", "city")
-        ordering = ["city__name"]
+        ordering = ["city"]
 
     def __str__(self) -> str:
         return f"{self.user} — {self.city}"
+
+
+class RiskReport(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="risk_reports",
+    )
+    day = models.DateField(db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    searches = models.ManyToManyField(
+        WeatherSearch,
+        related_name="risk_reports",
+        blank=True,
+    )
+
+    avg_risk = models.IntegerField(null=True, blank=True)
+    max_risk = models.IntegerField(null=True, blank=True)
+    searches_count = models.IntegerField(default=0)
+
+    class Meta:
+        unique_together = ("user", "day")
+        ordering = ["-day", "-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.user} — {self.day}"
