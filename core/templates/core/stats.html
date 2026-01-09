@@ -5,6 +5,63 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
     #riskMap { height: 460px; }
+
+    .risk-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 14px;
+        align-items: center;
+    }
+
+    .risk-legend .item {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border: 1px solid rgba(0,0,0,.08);
+        border-radius: 999px;
+        background: #fff;
+    }
+
+    .risk-legend .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid #222;
+        box-shadow: 0 0 0 2px rgba(255,255,255,0.7);
+    }
+
+    .leaflet-control.riskLegendControl {
+        background: rgba(255,255,255,0.95);
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(0,0,0,.12);
+        box-shadow: 0 8px 18px rgba(0,0,0,.08);
+        font-size: 12px;
+        line-height: 1.35;
+        color: #111;
+    }
+
+    .leaflet-control.riskLegendControl .title {
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .leaflet-control.riskLegendControl .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 4px 0;
+        white-space: nowrap;
+    }
+
+    .leaflet-control.riskLegendControl .swatch {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid #222;
+        box-shadow: 0 0 0 2px rgba(255,255,255,0.7);
+    }
 </style>
 {% endblock %}
 
@@ -75,13 +132,34 @@
 
 <div class="card mb-3">
     <div class="card-body">
-        <h2 class="h5 mb-3">Карта рисков (интерактивная)</h2>
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <h2 class="h5 mb-0">Карта рисков (интерактивная)</h2>
+
+            <div class="risk-legend">
+                <div class="item">
+                    <span class="dot" style="background:#2ecc71;"></span>
+                    <span>Низкий (0–24)</span>
+                </div>
+                <div class="item">
+                    <span class="dot" style="background:#f1c40f;"></span>
+                    <span>Умеренный (25–49)</span>
+                </div>
+                <div class="item">
+                    <span class="dot" style="background:#e67e22;"></span>
+                    <span>Высокий (50–74)</span>
+                </div>
+                <div class="item">
+                    <span class="dot" style="background:#e74c3c;"></span>
+                    <span>Критический (75–100)</span>
+                </div>
+            </div>
+        </div>
 
         {% if markers %}
             {{ markers|json_script:"map-markers" }}
             <div id="riskMap" class="rounded"></div>
             <div class="text-muted small mt-2">
-                Цвет маркера — итоговый риск 0..100. На карте видно вклад FIRMS (кол-во термоточек и средний confidence).
+                Маркер показывает рассчитанный риск (0–100) для города.
             </div>
         {% else %}
             <div class="alert alert-secondary mb-0">
@@ -153,15 +231,13 @@
                     label: "Температура (°C)",
                     data: temps,
                     tension: 0.25,
-                    pointRadius: 3,
+                    pointRadius: 3
                 }]
             },
             options: {
                 responsive: true,
                 plugins: { legend: { display: true } },
-                scales: {
-                    x: { ticks: { maxRotation: 60, minRotation: 40 } }
-                }
+                scales: { x: { ticks: { maxRotation: 60, minRotation: 40 } } }
             }
         });
     }
@@ -178,6 +254,7 @@
         }).addTo(map);
 
         const bounds = [];
+
         const colorToHex = (c) => {
             if (c === "green") return "#2ecc71";
             if (c === "yellow") return "#f1c40f";
@@ -197,7 +274,7 @@
                     box-shadow:0 0 0 2px rgba(255,255,255,0.7);
                 "></div>`,
                 iconSize: [14, 14],
-                iconAnchor: [7, 7],
+                iconAnchor: [7, 7]
             });
 
             const marker = L.marker([m.lat, m.lon], { icon }).addTo(map);
