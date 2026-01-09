@@ -1,6 +1,6 @@
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Avg, Max
+from django.db.models import Count, Avg, Max, OuterRef, Subquery, F
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
@@ -61,7 +61,8 @@ def _update_daily_report(user, weather_search_obj: WeatherSearch) -> None:
 
 
 def weather_search_view(request):
-    form = CitySearchForm(request.POST or None)
+    initial_city = (request.GET.get("city") or "").strip()
+    form = CitySearchForm(request.POST or None, initial={"city": initial_city} if initial_city else None)
 
     weather = None
     error_message = ""
@@ -138,8 +139,36 @@ def weather_search_view(request):
 
 @login_required
 def favorites_view(request):
-    favorites = FavoriteCity.objects.filter(user=request.user).order_by("city")
-    return render(request, "core/favorites.html", {"favorites": favorites})
+    sort = (request.GET.get("sort") or "alpha").strip().lower()
+
+    last_success = (
+        WeatherSearch.objects.filter(
+            user=request.user,
+            is_success=True,
+            city=OuterRef("city"),
+        )
+        .order_by("-created_at")
+    )
+
+    qs = (
+        FavoriteCity.objects.filter(user=request.user)
+        .annotate(
+            last_time=Subquery(last_success.values("created_at")[:1]),
+            last_temp=Subquery(last_success.values("temperature_c")[:1]),
+            last_risk=Subquery(last_success.values("risk_score")[:1]),
+            last_firms_count=Subquery(last_success.values("firms_count")[:1]),
+            last_firms_conf=Subquery(last_success.values("firms_avg_confidence")[:1]),
+        )
+    )
+
+    if sort == "risk":
+        qs = qs.order_by(F("last_risk").desc(nulls_last=True), "city")
+    elif sort == "last":
+        qs = qs.order_by(F("last_time").desc(nulls_last=True), "city")
+    else:
+        qs = qs.order_by("city")
+
+    return render(request, "core/favorites.html", {"favorites": qs, "sort": sort})
 
 
 @login_required
@@ -265,33 +294,18 @@ def stats_view(request):
     }
     return render(request, "core/stats.html", context)
 
+
 @login_required
 def reports_view(request):
-    reports = (
-        RiskReport.objects.filter(user=request.user)
-        .order_by("-day", "-created_at")[:60]
-    )
-
-    context = {
-        "reports": reports,
-    }
-    return render(request, "core/reports.html", context)
+    reports = RiskReport.objects.filter(user=request.user).order_by("-day", "-created_at")[:60]
+    return render(request, "core/reports.html", {"reports": reports})
 
 
 @login_required
 def report_detail_view(request, report_id: int):
     report = get_object_or_404(RiskReport, id=report_id, user=request.user)
-
-    searches = (
-        report.searches.all()
-        .order_by("-created_at")[:200]
-    )
-
-    context = {
-        "report": report,
-        "searches": searches,
-    }
-    return render(request, "core/report_detail.html", context)
+    searches = report.searches.all().order_by("-created_at")[:200]
+    return render(request, "core/report_detail.html", {"report": report, "searches": searches})
 
 
 @login_required

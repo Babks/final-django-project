@@ -4,17 +4,89 @@
 {% block content %}
 <h1 class="h3 mb-3">Избранные города</h1>
 
+<style>
+    .risk-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+        border: 2px solid rgba(0,0,0,.25);
+        vertical-align: middle;
+    }
+</style>
+
 {% if favorites %}
+    <form method="get" class="d-flex flex-wrap gap-2 align-items-center mb-3">
+        <label class="text-muted small" for="sortSelect">Сортировка:</label>
+        <select id="sortSelect" class="form-select form-select-sm" name="sort" onchange="this.form.submit()" style="max-width:260px;">
+            <option value="alpha" {% if sort == "alpha" %}selected{% endif %}>По алфавиту</option>
+            <option value="risk" {% if sort == "risk" %}selected{% endif %}>По риску (сначала высокий)</option>
+            <option value="last" {% if sort == "last" %}selected{% endif %}>По последнему запросу</option>
+        </select>
+    </form>
+
     <div class="list-group">
         {% for item in favorites %}
-            <div class="list-group-item d-flex justify-content-between align-items-center">
-                <div>{{ item.city }}</div>
-                <form method="post" action="{% url 'favorite_toggle' %}" class="m-0">
-                    {% csrf_token %}
-                    <input type="hidden" name="city" value="{{ item.city }}">
-                    <input type="hidden" name="next" value="{% url 'favorites' %}">
-                    <button class="btn btn-sm btn-outline-danger" type="submit">Удалить</button>
-                </form>
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                    <div>
+                        <div class="fw-semibold d-flex align-items-center flex-wrap gap-2">
+                            {% if item.last_risk != None %}
+                                {% if item.last_risk < 25 %}
+                                    <span class="risk-dot" style="background:#2ecc71;"></span>
+                                    <span class="badge text-bg-success">Низкий</span>
+                                {% elif item.last_risk < 50 %}
+                                    <span class="risk-dot" style="background:#f1c40f;"></span>
+                                    <span class="badge text-bg-warning">Умеренный</span>
+                                {% elif item.last_risk < 75 %}
+                                    <span class="risk-dot" style="background:#e67e22;"></span>
+                                    <span class="badge text-bg-warning">Высокий</span>
+                                {% else %}
+                                    <span class="risk-dot" style="background:#e74c3c;"></span>
+                                    <span class="badge text-bg-danger">Критический</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="risk-dot" style="background:#adb5bd;"></span>
+                                <span class="badge text-bg-secondary">Нет данных</span>
+                            {% endif %}
+
+                            <span>{{ item.city }}</span>
+
+                            {% if item.last_risk != None %}
+                                <span class="text-muted small">({{ item.last_risk }}/100)</span>
+                            {% endif %}
+                        </div>
+
+                        {% if item.last_time %}
+                            <div class="text-muted small mt-1">
+                                Последний запрос: {{ item.last_time|date:"d.m.Y H:i" }}
+                                {% if item.last_temp != None %} · {{ item.last_temp }} °C{% endif %}
+                                {% if item.last_firms_count != None %} · термоточек {{ item.last_firms_count }}{% endif %}
+                                {% if item.last_firms_conf != None %} · conf {{ item.last_firms_conf|floatformat:1 }}{% endif %}
+                            </div>
+                        {% else %}
+                            <div class="text-muted small mt-1">Нет успешных запросов по этому городу</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex gap-2 flex-wrap">
+                        <form method="post" action="{% url 'weather_search' %}" class="m-0">
+                            {% csrf_token %}
+                            <input type="hidden" name="city" value="{{ item.city }}">
+                            <button class="btn btn-sm btn-success" type="submit">Найти</button>
+                        </form>
+
+                        <a class="btn btn-sm btn-outline-primary" href="{% url 'stats' %}?city={{ item.city|urlencode }}">Статистика</a>
+
+                        <form method="post" action="{% url 'favorite_toggle' %}" class="m-0">
+                            {% csrf_token %}
+                            <input type="hidden" name="city" value="{{ item.city }}">
+                            <input type="hidden" name="next" value="{% url 'favorites' %}">
+                            <button class="btn btn-sm btn-outline-danger" type="submit">Удалить</button>
+                        </form>
+                    </div>
+                </div>
             </div>
         {% endfor %}
     </div>
