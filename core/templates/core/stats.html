@@ -6,6 +6,18 @@
 <style>
     #riskMap { height: 460px; }
 
+    .chart-wrap {
+        position: relative;
+        height: 280px;
+        width: 100%;
+    }
+
+    .chart-wrap canvas {
+        width: 100% !important;
+        height: 100% !important;
+        display: block;
+    }
+
     .risk-legend {
         display: flex;
         flex-wrap: wrap;
@@ -31,36 +43,12 @@
         box-shadow: 0 0 0 2px rgba(255,255,255,0.7);
     }
 
-    .leaflet-control.riskLegendControl {
-        background: rgba(255,255,255,0.95);
-        padding: 10px 12px;
-        border-radius: 10px;
-        border: 1px solid rgba(0,0,0,.12);
-        box-shadow: 0 8px 18px rgba(0,0,0,.08);
-        font-size: 12px;
-        line-height: 1.35;
-        color: #111;
-    }
+    #citySelect { min-width: 220px; }
 
-    .leaflet-control.riskLegendControl .title {
-        font-weight: 600;
-        margin-bottom: 6px;
-    }
-
-    .leaflet-control.riskLegendControl .row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin: 4px 0;
-        white-space: nowrap;
-    }
-
-    .leaflet-control.riskLegendControl .swatch {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        border: 2px solid #222;
-        box-shadow: 0 0 0 2px rgba(255,255,255,0.7);
+    @media (max-width: 576px) {
+        #riskMap { height: 360px; }
+        #citySelect { min-width: 0; width: 100%; }
+        .chart-wrap { height: 240px; }
     }
 </style>
 {% endblock %}
@@ -100,10 +88,9 @@
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
             <h2 class="h5 mb-0">Интерактивный график температуры</h2>
 
-            <form method="get" class="d-flex gap-2 align-items-center">
+            <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
                 <label class="text-muted small" for="citySelect">Город:</label>
-                <select class="form-select form-select-sm" id="citySelect" name="city" onchange="this.form.submit()"
-                        style="min-width: 220px;">
+                <select class="form-select form-select-sm" id="citySelect" name="city" onchange="this.form.submit()">
                     {% if cities %}
                         {% for c in cities %}
                             <option value="{{ c }}" {% if c|lower == selected_city|lower %}selected{% endif %}>
@@ -118,7 +105,9 @@
         {% if chart_labels and chart_temps %}
             {{ chart_labels|json_script:"chart-labels" }}
             {{ chart_temps|json_script:"chart-temps" }}
-            <canvas id="tempChart" height="110"></canvas>
+            <div class="chart-wrap">
+                <canvas id="tempChart"></canvas>
+            </div>
             <div class="text-muted small mt-2">
                 Показаны последние измерения температуры по выбранному городу из истории запросов.
             </div>
@@ -236,8 +225,11 @@
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: { legend: { display: true } },
-                scales: { x: { ticks: { maxRotation: 60, minRotation: 40 } } }
+                scales: {
+                    x: { ticks: { maxRotation: 60, minRotation: 40 } }
+                }
             }
         });
     }
@@ -267,12 +259,7 @@
 
             const icon = L.divIcon({
                 className: "risk-marker",
-                html: `<div style="
-                    width:14px;height:14px;border-radius:50%;
-                    background:${color};
-                    border:2px solid #222;
-                    box-shadow:0 0 0 2px rgba(255,255,255,0.7);
-                "></div>`,
+                html: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid #222;box-shadow:0 0 0 2px rgba(255,255,255,0.7);"></div>`,
                 iconSize: [14, 14],
                 iconAnchor: [7, 7]
             });
