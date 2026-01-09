@@ -2,6 +2,25 @@ from django.conf import settings
 from django.db import models
 
 
+class City(models.Model):
+    name = models.CharField(max_length=120, unique=True)
+    lat = models.FloatField(null=True, blank=True)
+    lon = models.FloatField(null=True, blank=True)
+
+    users = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        through="FavoriteCity",
+        related_name="favorite_cities",
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class WeatherSearch(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -23,7 +42,7 @@ class WeatherSearch(models.Model):
 
     lat = models.FloatField(null=True, blank=True)
     lon = models.FloatField(null=True, blank=True)
-    risk_score = models.IntegerField(null=True, blank=True)  # 0..100
+    risk_score = models.IntegerField(null=True, blank=True)
 
     firms_count = models.IntegerField(null=True, blank=True)
     firms_avg_confidence = models.FloatField(null=True, blank=True)
@@ -40,14 +59,18 @@ class FavoriteCity(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="favorite_cities",
+        related_name="favorite_city_links",
     )
-    city = models.CharField(max_length=120)
+    city = models.ForeignKey(
+        City,
+        on_delete=models.CASCADE,
+        related_name="favorite_links",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = ("user", "city")
-        ordering = ["city"]
+        ordering = ["city__name"]
 
     def __str__(self) -> str:
         return f"{self.user} — {self.city}"

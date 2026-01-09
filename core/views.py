@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from core.forms import CitySearchForm, SignUpForm
-from core.models import WeatherSearch, FavoriteCity
+from core.models import WeatherSearch, FavoriteCity, City
 from core.services import (
     get_weather_by_city,
     calc_simple_fire_risk,
@@ -83,7 +83,7 @@ def weather_search_view(request):
                     user=request.user,
                     city=weather.city,
                     is_success=True,
-                    error_message="",  # погода ок
+                    error_message="",
                     temperature_c=int(round(weather.temp)),
                     description=weather.description or "",
                     wind_speed=float(weather.wind_speed) if weather.wind_speed is not None else None,
@@ -92,12 +92,19 @@ def weather_search_view(request):
                     lon=float(weather.lon),
                     risk_score=int(total_risk),
                     firms_count=int(firms_count) if firms_rows is not None else None,
-                    firms_avg_confidence=float(firms_avg_conf) if (firms_rows is not None and firms_avg_conf is not None) else None,
+                    firms_avg_confidence=float(firms_avg_conf)
+                    if (firms_rows is not None and firms_avg_conf is not None)
+                    else None,
+                )
+
+                City.objects.update_or_create(
+                    name=weather.city,
+                    defaults={"lat": float(weather.lat), "lon": float(weather.lon)},
                 )
 
                 is_favorite = FavoriteCity.objects.filter(
                     user=request.user,
-                    city__iexact=weather.city,
+                    city__name__iexact=weather.city,
                 ).exists()
 
     context = {
@@ -111,7 +118,7 @@ def weather_search_view(request):
 
 @login_required
 def favorites_view(request):
-    favorites = FavoriteCity.objects.filter(user=request.user).order_by("city")
+    favorites = FavoriteCity.objects.filter(user=request.user).select_related("city").order_by("city__name")
     return render(request, "core/favorites.html", {"favorites": favorites})
 
 
@@ -185,10 +192,7 @@ def stats_view(request):
     top_cities = (
         WeatherSearch.objects.filter(user=request.user, is_success=True)
         .values("city")
-        .annotate(
-            cnt=Count("id"),
-            avg_temp=Avg("temperature_c"),
-        )
+        .annotate(cnt=Count("id"), avg_temp=Avg("temperature_c"))
         .order_by("-cnt", "city")[:10]
     )
 
@@ -242,16 +246,18 @@ def stats_view(request):
 @login_required
 @require_POST
 def toggle_favorite_city_view(request):
-    city = (request.POST.get("city") or "").strip()
+    city_name = (request.POST.get("city") or "").strip()
     next_url = request.POST.get("next") or reverse("weather_search")
 
-    if not city:
+    if not city_name:
         return redirect(next_url)
 
-    obj = FavoriteCity.objects.filter(user=request.user, city__iexact=city).first()
+    city_obj, _ = City.objects.get_or_create(name=city_name)
+
+    obj = FavoriteCity.objects.filter(user=request.user, city=city_obj).first()
     if obj:
         obj.delete()
     else:
-        FavoriteCity.objects.create(user=request.user, city=city)
+        FavoriteCity.objects.create(user=request.user, city=city_obj)
 
     return redirect(next_url)
