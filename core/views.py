@@ -1,7 +1,7 @@
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Avg, Max
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -264,6 +264,34 @@ def stats_view(request):
         "markers": markers,
     }
     return render(request, "core/stats.html", context)
+
+@login_required
+def reports_view(request):
+    reports = (
+        RiskReport.objects.filter(user=request.user)
+        .order_by("-day", "-created_at")[:60]
+    )
+
+    context = {
+        "reports": reports,
+    }
+    return render(request, "core/reports.html", context)
+
+
+@login_required
+def report_detail_view(request, report_id: int):
+    report = get_object_or_404(RiskReport, id=report_id, user=request.user)
+
+    searches = (
+        report.searches.all()
+        .order_by("-created_at")[:200]
+    )
+
+    context = {
+        "report": report,
+        "searches": searches,
+    }
+    return render(request, "core/report_detail.html", context)
 
 
 @login_required

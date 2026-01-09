@@ -1,0 +1,45 @@
+{% extends "core/base.html" %}
+{% block title %}Отчёты — FireRisk Watch{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-3">Ежедневные отчёты</h1>
+
+{% if reports %}
+    <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle">
+            <thead>
+            <tr>
+                <th>День</th>
+                <th class="text-end">Запросов</th>
+                <th class="text-end">Средний риск</th>
+                <th class="text-end">Макс. риск</th>
+                <th class="text-end">Действия</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for r in reports %}
+                <tr>
+                    <td class="fw-semibold">{{ r.day|date:"d.m.Y" }}</td>
+                    <td class="text-end">{{ r.searches_count }}</td>
+                    <td class="text-end">{{ r.avg_risk|default:"—" }}</td>
+                    <td class="text-end">{{ r.max_risk|default:"—" }}</td>
+                    <td class="text-end">
+                        <a class="btn btn-outline-primary btn-sm" href="{% url 'report_detail' r.id %}">
+                            Открыть
+                        </a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="text-muted small">
+        Это сводка по дням: отчёт обновляется автоматически после каждого успешного запроса погоды.
+    </div>
+{% else %}
+    <div class="alert alert-secondary">
+        Пока нет отчётов. Сделай несколько успешных запросов погоды — и отчёты появятся.
+    </div>
+{% endif %}
+{% endblock %}

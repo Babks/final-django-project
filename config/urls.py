@@ -10,6 +10,8 @@ from core.views import (
     signup_view,
     profile_view,
     stats_view,
+    reports_view,
+    report_detail_view
 )
 
 urlpatterns = [
@@ -27,4 +29,7 @@ urlpatterns = [
 
     path("accounts/signup/", signup_view, name="signup"),
     path("accounts/", include("django.contrib.auth.urls")),
+
+    path("reports/", reports_view, name="reports"),
+    path("reports/<int:report_id>/", report_detail_view, name="report_detail"),
 ]

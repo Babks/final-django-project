@@ -1,0 +1,75 @@
+{% extends "core/base.html" %}
+{% block title %}Отчёт — FireRisk Watch{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="h3 mb-0">Отчёт за {{ report.day|date:"d.m.Y" }}</h1>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'reports' %}">Назад к отчётам</a>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="text-muted">Запросов учтено</div>
+                <div class="fs-3 fw-semibold">{{ report.searches_count }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="text-muted">Средний риск</div>
+                <div class="fs-3 fw-semibold">{{ report.avg_risk|default:"—" }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="text-muted">Максимальный риск</div>
+                <div class="fs-3 fw-semibold">{{ report.max_risk|default:"—" }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <h2 class="h5 mb-3">Запросы, вошедшие в отчёт</h2>
+
+        {% if searches %}
+            <div class="table-responsive">
+                <table class="table table-sm table-striped align-middle mb-0">
+                    <thead>
+                    <tr>
+                        <th>Время</th>
+                        <th>Город</th>
+                        <th class="text-end">Риск</th>
+                        <th class="text-end">Темп.</th>
+                        <th class="text-end">Влажн.</th>
+                        <th class="text-end">Ветер</th>
+                        <th class="text-end">Термоточки</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for s in searches %}
+                        <tr>
+                            <td class="text-muted">{{ s.created_at|date:"H:i" }}</td>
+                            <td class="fw-semibold">{{ s.city }}</td>
+                            <td class="text-end">{{ s.risk_score|default:"—" }}</td>
+                            <td class="text-end">{{ s.temperature_c|default:"—" }}</td>
+                            <td class="text-end">{{ s.humidity|default:"—" }}</td>
+                            <td class="text-end">{{ s.wind_speed|default:"—" }}</td>
+                            <td class="text-end">{{ s.firms_count|default:"—" }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-secondary mb-0">В этом отчёте пока нет запросов.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
